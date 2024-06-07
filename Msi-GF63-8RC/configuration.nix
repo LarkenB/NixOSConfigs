@@ -5,11 +5,10 @@
 { config, pkgs, ... }:
 
 {
-  nix.settings.experimental-features = [ "nix-command" "flakes" ]; 
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  imports = [ # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+  ];
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -85,11 +84,35 @@
     isNormalUser = true;
     description = "Larken Barnes";
     extraGroups = [ "networkmanager" "wheel" ];
-    packages = with pkgs; [
-      firefox
-      vim
-      git
-    ];
+    packages = with pkgs;
+      let
+        vimrcConfig = {
+          customRC = ''
+            "Start terminal if not open in file
+            autocmd VimEnter * if empty(bufname(''')) | exe "terminal" | endif
+            autocmd BufEnter * let buf=bufname() | if isdirectory(buf) | exec 'terminal' | call feedkeys('icd' ".buf."\<CR> | endif
+
+            set nu
+            colorscheme molokai
+            set tabstop=2
+            set shiftwidth=2
+
+            tnoremap <ESC>  <C-\><C-n>
+          '';
+
+          packages.myPackages = with pkgs.vimPlugins; {
+            start = [
+              # Style
+              vim-colorschemes
+              vim-airline
+              vim-airline-themes
+
+              # Errors
+              ale
+            ];
+          };
+        };
+      in [ firefox (neovim.override { configure = vimrcConfig; }) git gh ];
   };
 
   # Allow unfree packages
@@ -97,10 +120,11 @@
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
-  environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
-  ];
+  environment.systemPackages = with pkgs;
+    [
+      #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+      #  wget
+    ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
